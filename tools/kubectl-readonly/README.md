@@ -7,7 +7,13 @@ in, cluster state (text/JSON) out.
 
 - **Input** (`argv[2]`): everything after `kubectl`, e.g. `"get pods -n prod"`.
 - **Output**: kubectl's own stdout, wrapped in a fenced code block, delivered
-  via the event contract in `docs/messaging.md`.
+  via the event contract in `docs/messaging.md`. kubectl's stdout is
+  untrusted, unbounded text -- e.g. `logs` with no `--tail` can return a
+  pod's entire history -- so it's clipped to `KUBECTL_MAX_RESULT_CHARS`
+  (default 20000, see `src/config.ts`) and wrapped with a fence wider than
+  any backtick run already inside it (`src/security/fence.ts`), so the
+  content can't truncate silently mid-fence or break out of its own code
+  block.
 
 ## Safety model (defense in depth)
 

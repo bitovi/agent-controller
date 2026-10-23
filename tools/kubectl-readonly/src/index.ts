@@ -3,6 +3,7 @@ import { config } from "./config.js";
 import { KubectlExecError, runKubectl } from "./kubectl.js";
 import { createSink, JobEmitter } from "./messaging/index.js";
 import type { ErrorCode } from "./schema.js";
+import { fenceCodeBlock } from "./security/fence.js";
 import { clip } from "./security/redact.js";
 
 /** Process exit codes, so the parent agent can branch on failure class. */
@@ -52,7 +53,13 @@ async function run(emitter: JobEmitter, commandLine: string): Promise<void> {
 
   const isJson = argv.some((a) => a === "-o=json" || a === "--output=json" || a === "json");
   const lang = isJson ? "json" : "text";
-  await emitter.succeeded(`\`\`\`${lang}\n${stdout.trim()}\n\`\`\``);
+  // kubectl output is untrusted, unbounded text (e.g. `logs` with no
+  // `--tail` can return a pod's entire history, and that text can itself
+  // contain a run of backticks) -- clip it to a sane size and fence it with
+  // a backtick run wider than any already inside it so the content can't
+  // break out of its own code block.
+  const trimmed = clip(stdout.trim(), config.maxResultChars);
+  await emitter.succeeded(fenceCodeBlock(lang, trimmed));
 }
 
 async function main(): Promise<void> {

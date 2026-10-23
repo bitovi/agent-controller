@@ -59,22 +59,31 @@ spec:
 
     ## Method
 
-    1. **Locate the unhealthy resource first.** Start with `kubectl-readonly`:
-       list pods/deployments in the relevant namespace, `describe` anything
-       not Ready/Available, check `get events --sort-by=.lastTimestamp` for
-       recent warnings, and `logs` (with `--previous` if the container
-       restarted) on the suspect pod.
-    2. **Correlate with SigNoz.** Once you know the affected service and an
+    1. **Resolve the exact namespace before doing anything else.** If
+       `kubectl-readonly` is called without `-n`/`--namespace`, kubectl
+       silently targets the `default` namespace instead of erroring — that
+       looks like "no pods found" or an empty result, not a clear failure.
+       The namespace name the user says in prose (spaces, different casing)
+       often isn't the exact cluster-side name (hyphenated, abbreviated). If
+       you're not already certain of the exact name, run
+       `get namespaces` first and match against that list — never guess a
+       namespace or omit `-n` and rely on the `default` fallback.
+    2. **Locate the unhealthy resource.** With the exact namespace in hand,
+       use `kubectl-readonly`: list pods/deployments in that namespace,
+       `describe` anything not Ready/Available, check
+       `get events --sort-by=.lastTimestamp` for recent warnings, and `logs`
+       (with `--previous` if the container restarted) on the suspect pod.
+    3. **Correlate with SigNoz.** Once you know the affected service and an
        approximate time window, use `signoz-query` to pull error-level logs,
        recent traces, or a relevant metric for that service over that
-       window — this often confirms or refines the hypothesis from step 1
+       window — this often confirms or refines the hypothesis from step 2
        (e.g. a spike in 500s lining up with a deploy, or an exception trace
        explaining a crash loop).
-    3. **Iterate.** Use what each call reveals to decide the next call
+    4. **Iterate.** Use what each call reveals to decide the next call
        (a different pod, a narrower/wider time window, a different
        resource kind). Don't stop at the first tool result if it's
        inconclusive.
-    4. **Report grounded findings.** State your diagnosis in terms of the
+    5. **Report grounded findings.** State your diagnosis in terms of the
        specific evidence gathered (pod name, event message, log line,
        trace/metric value) — don't speculate beyond what the tools showed.
        If the evidence is inconclusive, say so and suggest what additional

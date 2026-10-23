@@ -30,6 +30,9 @@ export interface AppConfig {
   serviceAccountCaPath: string;
   /** Bound on how long a single kubectl invocation may run. */
   kubectlTimeoutMs: number;
+  /** Max characters of kubectl stdout surfaced in the `succeeded` result
+   * (e.g. `logs` with no `--tail` can return an unbounded amount of text). */
+  maxResultChars: number;
 }
 
 function num(raw: string | undefined, fallback: number): number {
@@ -73,4 +76,5 @@ export const config: AppConfig = {
   serviceAccountCaPath:
     process.env.KUBECTL_SA_CA_PATH ?? "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
   kubectlTimeoutMs: num(process.env.KUBECTL_TIMEOUT_MS, 15_000),
+  maxResultChars: num(process.env.KUBECTL_MAX_RESULT_CHARS, 20_000),
 };
